@@ -6,3 +6,5 @@ const idGet = idSearch.get('id')
 //ajout du numéro dans la page
 const orderNumber = document.getElementById('orderId')
 orderNumber.innerText = `${idGet}`
+
+localStorage.clear()
