@@ -1,9 +1,16 @@
 // récupération du panier dans le localstorage
 const getCart = localStorage.getItem('panier')
 const cartArray = JSON.parse(getCart)
-console.log(cartArray)
 
 const cart = document.querySelector('#cart__items')
+
+//initialisation de la quantité et du prix total des articles
+const totalArticles = 0
+const totalQuantity = document.getElementById('totalQuantity')
+totalQuantity.innerText = totalArticles
+
+let totalPrice = 0
+const totalPriceText = document.getElementById('totalPrice')
 
 for(element of cartArray){
     // création balise article
@@ -17,10 +24,31 @@ for(element of cartArray){
     const colors = element.color_local
     const quantity = element.quantity_local
 
+    //calcul de la quantité totale des articles
+    const valeurInitiale = 0
+
+    function totalArticlesFn(){
+        const sommeQuantite = cartArray.reduce(
+            (accumulateur, valeurCourante) => accumulateur + valeurCourante.quantity_local, valeurInitiale
+        )
+
+        const totalQuantity = document.getElementById('totalQuantity')
+        totalQuantity.innerText = totalArticles + sommeQuantite
+    }
+    totalArticlesFn()
+
     //récupération des données dans l'API
     fetch('http://localhost:3000/api/products/' + id)
     .then(reponse => reponse.json())
-    .then(products => {        
+    .then(products => {   
+        //calcul du prix total des articles
+        function totalPriceFn(){
+            let productAndQuantity = products.price*quantity 
+            totalPrice += productAndQuantity
+            totalPriceText.innerText = totalPrice 
+        }
+        totalPriceFn()
+
         // création div image de l'item
         const itemImgDiv = document.createElement('div')
         items.appendChild(itemImgDiv)
@@ -82,12 +110,35 @@ for(element of cartArray){
             const itemGetId = itemGet.dataset.id
             const itemGetColor = itemGet.dataset.color
 
+            //stocker l'ancienne quantité
+            cartArray.forEach(x => {
+                if (x.color_local == colors && x.id_local == id)
+                oldQuantity = x.quantity_local
+            })
+
+            //nouveau stockage de la quantité dans le localStorage
             for(el of cartArray){
                 if(itemGetId == el.id_local && itemGetColor == el.color_local){
                     el.quantity_local = Number(quantityInput.value)
                     localStorage.setItem('panier', JSON.stringify(cartArray))
                 }
             }
+        
+            //comparer l'ancienne quantité à la nouvelle pour augmenter ou baisser le montant final
+            const newQuantity = quantityInput.value
+
+            if(oldQuantity < newQuantity){
+                const moreItems = newQuantity-oldQuantity
+                const increasePrice = moreItems*products.price
+                totalPrice += increasePrice
+                totalPriceText.innerText = totalPrice
+            }else if(oldQuantity > newQuantity){
+                const lessItems = oldQuantity-newQuantity
+                const decreasePrice = lessItems*products.price
+                totalPrice -= decreasePrice
+                totalPriceText.innerText = totalPrice
+            }
+            totalArticlesFn()
         }
 
         // option 'supprimer'
@@ -108,6 +159,11 @@ for(element of cartArray){
             const itemGetId = itemGet.dataset.id
             const itemGetColor = itemGet.dataset.color
 
+            //suppression du prix des articles supprimés
+            const deletePrice = products.price*quantityInput.value
+            totalPrice -= deletePrice
+            totalPriceText.innerText = totalPrice
+
             const differentItems = cartArray.filter((elt) => itemGetId !== elt.id_local || itemGetColor !== elt.color_local)
             cartArray.splice(0, cartArray.length)
             Array.prototype.push.apply(cartArray, differentItems)
@@ -116,9 +172,11 @@ for(element of cartArray){
             alert('Article(s) supprimé(s) !')
 
             //disparition du DOM
-            itemGet.remove()          
+            itemGet.remove()
+
+            totalArticlesFn()
         }
-    })    
+    }) 
 }
 
 
